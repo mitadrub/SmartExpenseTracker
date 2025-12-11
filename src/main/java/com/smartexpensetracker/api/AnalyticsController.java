@@ -54,15 +54,6 @@ public class AnalyticsController {
 
     @GetMapping("/alerts")
     public ResponseEntity<List<String>> getAlerts(@AuthenticationPrincipal UserDetails userDetails) {
-        // Simple logic: If total expenses > 80% of budget?
-        // Need to access BudgetService? Or just implemented generic checks?
-        // Since I don't have BudgetService injected here, I'll return a placeholder or
-        // inject it.
-        // For simplicity, returning mock alerts for now as the logic might be complex
-        // and involve fetching all budgets and matching with expenses.
-        // Let's modify constructor to inject BudgetService and ExpenseService if we
-        // want real logic.
-        // Or just return empty list for initial impl.
-        return ResponseEntity.ok(new ArrayList<>());
+        return ResponseEntity.ok(analyticsService.getAlerts(userDetails.getUsername()));
     }
 }

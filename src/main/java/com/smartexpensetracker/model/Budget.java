@@ -24,7 +24,7 @@ public class Budget {
     @Column(nullable = false)
     private BigDecimal amount;
 
-    @Column(nullable = false)
+    @Column(name = "budget_month", nullable = false)
     private YearMonth month; // Store as string (YYYY-MM) or convert
 
     @ManyToOne(fetch = FetchType.LAZY)
