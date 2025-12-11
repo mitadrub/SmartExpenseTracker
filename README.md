@@ -8,17 +8,17 @@ The application follows a classic Layered Architecture pattern using Spring Boot
 
 ```mermaid
 graph TD
-    Client[Client (Postman/Mobile/Web)] -->|HTTP Requests| Security[Security Layer (JWT Filter)]
-    Security -->|Authorized| Controller[API Layer (Controllers)]
+    Client["Client (Postman/Mobile/Web)"] -->|HTTP Requests| Security["Security Layer (JWT Filter)"]
+    Security -->|Authorized| Controller["API Layer (Controllers)"]
     
-    subgraph S[Application Core]
-        Controller -->|DTOs| Service[Service Layer (Business Logic)]
-        Service -->|Entities| Repository[Data Layer (JPA Repositories)]
+    subgraph Core ["Application Core"]
+        Controller -->|DTOs| Service["Service Layer (Business Logic)"]
+        Service -->|Entities| Repository["Data Layer (JPA Repositories)"]
     end
     
-    Repository -->|SQL| DB[(H2 Database)]
+    Repository -->|SQL| DB[("H2 Database")]
     
-    classDef layer bitfill:#f9f,stroke:#333,stroke-width:2px;
+    classDef layer fill:#f9f,stroke:#333,stroke-width:2px;
     class Client,DB layer
 ```
 
