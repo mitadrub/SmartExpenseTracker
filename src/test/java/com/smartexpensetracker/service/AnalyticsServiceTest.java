@@ -140,4 +140,71 @@ class AnalyticsServiceTest {
         assertEquals(new BigDecimal("75.00"), summary.getTotal());
         assertEquals(new BigDecimal("75.00"), summary.getByCategory().get("Groceries"));
     }
+
+    @Test
+    void getForecast_ShouldReturnAverageOfLast3Months() {
+        // Arrange
+        Expense e1 = new Expense();
+        e1.setAmount(new BigDecimal("300.00")); // Total for 3 months
+        // Mocking date dependency is hard without clock injection, but we can relies on
+        // logic finding expenses
+        when(userRepository.findByUsername(testUser.getUsername())).thenReturn(Optional.of(testUser));
+        when(expenseRepository.findByUserIdAndDateBetween(eq(testUser.getId()), any(LocalDate.class),
+                any(LocalDate.class)))
+                .thenReturn(Collections.singletonList(e1));
+
+        // Act
+        AnalyticsService.Forecast forecast = analyticsService.getForecast(testUser.getUsername());
+
+        // Assert
+        assertEquals(new BigDecimal("100.00"), forecast.getPredictedTotal()); // 300 / 3
+    }
+
+    @Test
+    void getTrends_ShouldReturnDailySpending() {
+        // Arrange
+        LocalDate today = LocalDate.now();
+        Expense e1 = new Expense();
+        e1.setDate(today);
+        e1.setAmount(BigDecimal.TEN);
+
+        when(userRepository.findByUsername(testUser.getUsername())).thenReturn(Optional.of(testUser));
+        when(expenseRepository.findByUserIdAndDateBetween(eq(testUser.getId()), any(LocalDate.class),
+                any(LocalDate.class)))
+                .thenReturn(Collections.singletonList(e1));
+
+        // Act
+        var trends = analyticsService.getTrends(testUser.getUsername(), today, today);
+
+        // Assert
+        assertEquals(BigDecimal.TEN, trends.get(today));
+    }
+
+    @Test
+    void getAlerts_ShouldReturnAlert_WhenOverallBudgetExceeded() {
+        // Arrange
+        YearMonth currentMonth = YearMonth.now();
+        Budget budget = new Budget();
+        budget.setAmount(new BigDecimal("100.00"));
+        budget.setCategory(null); // Overall budget
+        budget.setMonth(currentMonth);
+
+        Expense expense = new Expense();
+        expense.setAmount(new BigDecimal("150.00"));
+
+        when(userRepository.findByUsername(testUser.getUsername())).thenReturn(Optional.of(testUser));
+        when(budgetRepository.findByUserIdAndMonth(testUser.getId(), currentMonth))
+                .thenReturn(Collections.singletonList(budget));
+        when(expenseRepository.findByUserIdAndDateBetween(eq(testUser.getId()), any(LocalDate.class),
+                any(LocalDate.class)))
+                .thenReturn(Collections.singletonList(expense));
+
+        // Act
+        List<String> alerts = analyticsService.getAlerts(testUser.getUsername());
+
+        // Assert
+        assertFalse(alerts.isEmpty());
+        assertTrue(alerts.get(0).contains("Alert"));
+        assertTrue(alerts.get(0).contains("Total budget"));
+    }
 }
