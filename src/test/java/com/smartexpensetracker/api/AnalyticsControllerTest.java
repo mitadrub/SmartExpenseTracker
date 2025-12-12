@@ -59,4 +59,32 @@ class AnalyticsControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0]").value("Alert 1"));
     }
+
+    @Test
+    @WithMockUser(username = "testuser")
+    void getTrends_ShouldUseDefaultDates_WhenParamsMissing() throws Exception {
+        // Mock service response
+        when(analyticsService.getTrends(eq("testuser"), any(java.time.LocalDate.class), any(java.time.LocalDate.class)))
+                .thenReturn(Collections.emptyMap());
+
+        // Perform request without params
+        mockMvc.perform(get("/api/v1/analytics/trends"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(username = "testuser")
+    void getForecast_ShouldReturnForecast() throws Exception {
+        AnalyticsService.Forecast forecast = AnalyticsService.Forecast.builder()
+                .predictedTotal(BigDecimal.valueOf(500))
+                .confidence(0.85)
+                .build();
+
+        when(analyticsService.getForecast("testuser")).thenReturn(forecast);
+
+        mockMvc.perform(get("/api/v1/forecast/next-month"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.predictedTotal").value(500))
+                .andExpect(jsonPath("$.confidence").value(0.85));
+    }
 }

@@ -83,4 +83,49 @@ class ExpenseControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.description").value("New"));
     }
+
+    @Test
+    @WithMockUser(username = "testuser")
+    void getExpense_ShouldReturnExpense() throws Exception {
+        Expense expense = new Expense();
+        expense.setId(1L);
+        expense.setDescription("Details");
+
+        when(expenseService.getExpense(eq(1L), eq("testuser"))).thenReturn(expense);
+
+        mockMvc.perform(get("/api/v1/expenses/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.description").value("Details"));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser")
+    void updateExpense_ShouldReturnUpdated_AndExtractCategoryId() throws Exception {
+        Expense expense = new Expense();
+        expense.setId(1L);
+        expense.setAmount(BigDecimal.TEN);
+        expense.setDescription("Updated");
+        // category object to test extraction logic
+        com.smartexpensetracker.model.Category cat = new com.smartexpensetracker.model.Category();
+        cat.setId(5L);
+        expense.setCategory(cat);
+
+        when(expenseService.updateExpense(eq(1L), any(Expense.class), eq("testuser"), eq(5L)))
+                .thenReturn(expense);
+
+        mockMvc.perform(put("/api/v1/expenses/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(expense)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.description").value("Updated"));
+    }
+
+    @Test
+    @WithMockUser(username = "testuser")
+    void deleteExpense_ShouldReturnOk() throws Exception {
+        mockMvc.perform(delete("/api/v1/expenses/1"))
+                .andExpect(status().isOk());
+
+        org.mockito.Mockito.verify(expenseService).deleteExpense(eq(1L), eq("testuser"));
+    }
 }
