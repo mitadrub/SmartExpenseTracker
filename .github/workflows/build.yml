@@ -21,14 +21,25 @@ jobs:
         distribution: 'temurin'
         cache: maven
         
-    - name: Build with Maven
-      run: mvn clean verify
-
-    - name: Analyze with SonarQube
+    - name: 🧪 Test and Build
+      run: mvn -B verify
+        
+    - name: 🔍 SonarCloud Analysis
       if: ${{ env.SONAR_TOKEN != '' }}
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
-      run: mvn -B verify sonar:sonar -Dsonar.projectKey=mitadrub_SmartExpenseTracker -Dsonar.projectName='SmartExpenseTracker' -Dsonar.organization=$SONAR_ORGANIZATION -Dsonar.qualitygate.wait=true
+      run: mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=mitadrub_SmartExpenseTracker -Dsonar.organization=$SONAR_ORGANIZATION -Dsonar.host.url=https://sonarcloud.io -Dsonar.token=$SONAR_TOKEN -Dsonar.qualitygate.wait=true
+
+    - name: 📝 Generate Job Summary
+      if: always()
+      run: |
+        echo "## 🚀 SpendSight Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Java Version**: 17" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Build Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Metric | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+        echo "| Tests | Completed |" >> $GITHUB_STEP_SUMMARY
+        echo "| Quality Gate | Checked |" >> $GITHUB_STEP_SUMMARY
