@@ -42,19 +42,7 @@ public class ExpenseController {
             @RequestBody Expense expense,
             @RequestParam(required = false) Long categoryId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        // If category is inside body, extract it? For now assume it might be param or
-        // body.
-        // Service expects ID. If expense has category object with ID, we can use that
-        // too.
-        // Simplified: use param or assume expense.category.id is set if mapped, but
-        // standard DTO approach is better.
-        // Let's stick to param for categoryId as per service signature or update logic.
-        // Actually the service takes `categoryId`.
-        Long catId = categoryId;
-        if (catId == null && expense.getCategory() != null) {
-            catId = expense.getCategory().getId();
-        }
-        return ResponseEntity.ok(expenseService.createExpense(expense, userDetails.getUsername(), catId));
+        return ResponseEntity.ok(expenseService.createExpense(expense, userDetails.getUsername(), categoryId));
     }
 
     @PutMapping("/{id}")
@@ -63,11 +51,7 @@ public class ExpenseController {
             @RequestBody Expense expense,
             @RequestParam(required = false) Long categoryId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        Long catId = categoryId;
-        if (catId == null && expense.getCategory() != null) {
-            catId = expense.getCategory().getId();
-        }
-        return ResponseEntity.ok(expenseService.updateExpense(id, expense, userDetails.getUsername(), catId));
+        return ResponseEntity.ok(expenseService.updateExpense(id, expense, userDetails.getUsername(), categoryId));
     }
 
     @DeleteMapping("/{id}")

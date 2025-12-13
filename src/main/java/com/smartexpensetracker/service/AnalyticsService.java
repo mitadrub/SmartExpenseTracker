@@ -40,35 +40,15 @@ public class AnalyticsService {
     }
 
     public AnalyticsSummary getSummary(String username, YearMonth month) {
-        User user = userRepository.findByUsername(username).orElseThrow();
+        User user = getUser(username);
         LocalDate start = month.atDay(1);
         LocalDate end = month.atEndOfMonth();
 
         List<Expense> expenses = expenseRepository.findByUserIdAndDateBetween(user.getId(), start, end);
 
-        BigDecimal total = expenses.stream()
-                .map(Expense::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        Map<String, BigDecimal> byCategory = new HashMap<>();
-        expenses.forEach(e -> {
-            String catName = e.getCategory() != null ? e.getCategory().getName() : "Uncategorized";
-            byCategory.merge(catName, e.getAmount(), BigDecimal::add);
-        });
-
-        // Previous month for MoM change
-        LocalDate prevStart = start.minusMonths(1);
-        LocalDate prevEnd = prevStart.plusMonths(1).minusDays(1);
-        List<Expense> prevExpenses = expenseRepository.findByUserIdAndDateBetween(user.getId(), prevStart, prevEnd);
-        BigDecimal prevTotal = prevExpenses.stream()
-                .map(Expense::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal change = BigDecimal.ZERO;
-        if (prevTotal.compareTo(BigDecimal.ZERO) > 0) {
-            change = total.subtract(prevTotal).divide(prevTotal, 2, java.math.RoundingMode.HALF_UP)
-                    .multiply(BigDecimal.valueOf(100));
-        }
+        BigDecimal total = calculateTotal(expenses);
+        Map<String, BigDecimal> byCategory = calculateByCategory(expenses);
+        BigDecimal change = calculateMonthOverMonthChange(user, start, total);
 
         return AnalyticsSummary.builder()
                 .total(total)
@@ -78,8 +58,7 @@ public class AnalyticsService {
     }
 
     public Forecast getForecast(String username) {
-        // Simple prediction: Average of last 3 months
-        User user = userRepository.findByUsername(username).orElseThrow();
+        User user = getUser(username);
         LocalDate now = LocalDate.now();
         LocalDate start = now.minusMonths(3).withDayOfMonth(1);
         LocalDate end = now.withDayOfMonth(1).minusDays(1);
@@ -89,17 +68,17 @@ public class AnalyticsService {
             return Forecast.builder().predictedTotal(BigDecimal.ZERO).confidence(0.0).build();
         }
 
-        BigDecimal total = expenses.stream().map(Expense::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal total = calculateTotal(expenses);
         BigDecimal avg = total.divide(BigDecimal.valueOf(3), 2, java.math.RoundingMode.HALF_UP);
 
         return Forecast.builder()
                 .predictedTotal(avg)
-                .confidence(0.7) // Static confidence for simple average
+                .confidence(0.7)
                 .build();
     }
 
     public Map<LocalDate, BigDecimal> getTrends(String username, LocalDate from, LocalDate to) {
-        User user = userRepository.findByUsername(username).orElseThrow();
+        User user = getUser(username);
         List<Expense> expenses = expenseRepository.findByUserIdAndDateBetween(user.getId(), from, to);
 
         Map<LocalDate, BigDecimal> trends = new HashMap<>();
@@ -107,49 +86,83 @@ public class AnalyticsService {
         return trends;
     }
 
-    public java.util.List<String> getAlerts(String username) {
-        User user = userRepository.findByUsername(username).orElseThrow();
+    public List<String> getAlerts(String username) {
+        User user = getUser(username);
         YearMonth currentMonth = YearMonth.now();
-
-        java.util.List<com.smartexpensetracker.model.Budget> budgets = budgetRepository
-                .findByUserIdAndMonth(user.getId(), currentMonth);
-        java.util.List<String> alerts = java.util.ArrayList.class.cast(new java.util.ArrayList<>());
-
-        // Re-initializing to be safe with standard List import
-        alerts = new java.util.ArrayList<>();
+        List<com.smartexpensetracker.model.Budget> budgets = budgetRepository.findByUserIdAndMonth(user.getId(),
+                currentMonth);
+        List<String> alerts = new java.util.ArrayList<>();
 
         for (com.smartexpensetracker.model.Budget budget : budgets) {
-            BigDecimal limit = budget.getAmount();
-            BigDecimal spent = BigDecimal.ZERO;
-
-            LocalDate start = currentMonth.atDay(1);
-            LocalDate end = currentMonth.atEndOfMonth();
-
-            if (budget.getCategory() != null) {
-                // Category-specific budget
-                List<Expense> expenses = expenseRepository.findByUserIdAndCategoryIdAndDateBetween(
-                        user.getId(), budget.getCategory().getId(), start, end);
-                spent = expenses.stream()
-                        .map(Expense::getAmount)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-            } else {
-                // Overall budget
-                List<Expense> expenses = expenseRepository.findByUserIdAndDateBetween(user.getId(), start, end);
-                spent = expenses.stream()
-                        .map(Expense::getAmount)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-            }
-
-            if (spent.compareTo(limit) > 0) {
-                String catName = budget.getCategory() != null ? budget.getCategory().getName() : "Total";
-                alerts.add("Alert: You have exceeded your " + catName + " budget! ($" + spent + " / $" + limit + ")");
-            } else if (spent.compareTo(limit.multiply(BigDecimal.valueOf(0.8))) > 0) {
-                String catName = budget.getCategory() != null ? budget.getCategory().getName() : "Total";
-                alerts.add("Warning: You have reached 80% of your " + catName + " budget. ($" + spent + " / $" + limit
-                        + ")");
-            }
+            checkBudget(budget, user, currentMonth, alerts);
         }
 
         return alerts;
+    }
+
+    private User getUser(String username) {
+        return userRepository.findByUsername(username).orElseThrow();
+    }
+
+    private BigDecimal calculateTotal(List<Expense> expenses) {
+        return expenses.stream()
+                .map(Expense::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private Map<String, BigDecimal> calculateByCategory(List<Expense> expenses) {
+        Map<String, BigDecimal> byCategory = new HashMap<>();
+        expenses.forEach(e -> {
+            String catName = e.getCategory() != null ? e.getCategory().getName() : "Uncategorized";
+            byCategory.merge(catName, e.getAmount(), BigDecimal::add);
+        });
+        return byCategory;
+    }
+
+    private BigDecimal calculateMonthOverMonthChange(User user, LocalDate currentStart, BigDecimal currentTotal) {
+        LocalDate prevStart = currentStart.minusMonths(1);
+        LocalDate prevEnd = prevStart.plusMonths(1).minusDays(1);
+        List<Expense> prevExpenses = expenseRepository.findByUserIdAndDateBetween(user.getId(), prevStart, prevEnd);
+        BigDecimal prevTotal = calculateTotal(prevExpenses);
+
+        if (prevTotal.compareTo(BigDecimal.ZERO) > 0) {
+            return currentTotal.subtract(prevTotal).divide(prevTotal, 2, java.math.RoundingMode.HALF_UP)
+                    .multiply(BigDecimal.valueOf(100));
+        }
+        return BigDecimal.ZERO;
+    }
+
+    private void checkBudget(com.smartexpensetracker.model.Budget budget, User user, YearMonth month,
+            List<String> alerts) {
+        BigDecimal limit = budget.getAmount();
+        BigDecimal spent = calculateSpentForBudget(budget, user, month);
+
+        if (spent.compareTo(limit) > 0) {
+            String catName = getCategoryName(budget);
+            alerts.add("Alert: You have exceeded your " + catName + " budget! ($" + spent + " / $" + limit + ")");
+        } else if (spent.compareTo(limit.multiply(BigDecimal.valueOf(0.8))) > 0) {
+            String catName = getCategoryName(budget);
+            alerts.add(
+                    "Warning: You have reached 80% of your " + catName + " budget. ($" + spent + " / $" + limit + ")");
+        }
+    }
+
+    private BigDecimal calculateSpentForBudget(com.smartexpensetracker.model.Budget budget, User user,
+            YearMonth month) {
+        LocalDate start = month.atDay(1);
+        LocalDate end = month.atEndOfMonth();
+
+        if (budget.getCategory() != null) {
+            List<Expense> expenses = expenseRepository.findByUserIdAndCategoryIdAndDateBetween(
+                    user.getId(), budget.getCategory().getId(), start, end);
+            return calculateTotal(expenses);
+        } else {
+            List<Expense> expenses = expenseRepository.findByUserIdAndDateBetween(user.getId(), start, end);
+            return calculateTotal(expenses);
+        }
+    }
+
+    private String getCategoryName(com.smartexpensetracker.model.Budget budget) {
+        return budget.getCategory() != null ? budget.getCategory().getName() : "Total";
     }
 }

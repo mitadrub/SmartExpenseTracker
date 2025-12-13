@@ -8,6 +8,7 @@ import com.smartexpensetracker.model.Budget;
 import com.smartexpensetracker.model.Category;
 import com.smartexpensetracker.model.Expense;
 import com.smartexpensetracker.model.User;
+import jakarta.transaction.Transactional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,8 +22,6 @@ import java.time.YearMonth;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-
-import jakarta.transaction.Transactional;
 
 @SpringBootTest
 @Transactional

@@ -9,7 +9,6 @@ import com.smartexpensetracker.model.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -37,10 +36,7 @@ public class ExpenseService {
 
     public Expense createExpense(Expense expenseRequest, String username, Long categoryId) {
         User user = userRepository.findByUsername(username).orElseThrow();
-        Category category = null;
-        if (categoryId != null) {
-            category = categoryRepository.findById(categoryId).orElse(null);
-        }
+        Category category = resolveCategory(categoryId, expenseRequest);
 
         Expense expense = Expense.builder()
                 .amount(expenseRequest.getAmount())
@@ -58,6 +54,8 @@ public class ExpenseService {
         Category category = existing.getCategory();
         if (categoryId != null) {
             category = categoryRepository.findById(categoryId).orElse(category);
+        } else if (expenseRequest.getCategory() != null && expenseRequest.getCategory().getId() != null) {
+            category = categoryRepository.findById(expenseRequest.getCategory().getId()).orElse(category);
         }
 
         existing.setAmount(expenseRequest.getAmount());
@@ -66,6 +64,16 @@ public class ExpenseService {
         existing.setCategory(category);
 
         return expenseRepository.save(existing);
+    }
+
+    private Category resolveCategory(Long categoryId, Expense expenseRequest) {
+        if (categoryId != null) {
+            return categoryRepository.findById(categoryId).orElse(null);
+        }
+        if (expenseRequest.getCategory() != null && expenseRequest.getCategory().getId() != null) {
+            return categoryRepository.findById(expenseRequest.getCategory().getId()).orElse(null);
+        }
+        return null;
     }
 
     public void deleteExpense(Long id, String username) {
