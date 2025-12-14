@@ -35,6 +35,8 @@ public class BudgetService {
             category = categoryRepository.findById(categoryId).orElse(null);
         }
 
+        validateBudgetLimit(user, budgetRequest.getMonth(), budgetRequest.getAmount(), categoryId, null);
+
         Budget budget = Budget.builder()
                 .amount(budgetRequest.getAmount())
                 .month(budgetRequest.getMonth())
@@ -49,8 +51,10 @@ public class BudgetService {
                 .filter(b -> b.getUser().getUsername().equals(username))
                 .orElseThrow(() -> new RuntimeException("Budget not found"));
 
+        validateBudgetLimit(existing.getUser(), existing.getMonth(), budgetRequest.getAmount(),
+                existing.getCategory() != null ? existing.getCategory().getId() : null, id);
+
         existing.setAmount(budgetRequest.getAmount());
-        // Allow updating month? Usually fixed. Let's allow amount update mainly.
         return budgetRepository.save(existing);
     }
 
@@ -59,5 +63,50 @@ public class BudgetService {
                 .filter(b -> b.getUser().getUsername().equals(username))
                 .orElseThrow(() -> new RuntimeException("Budget not found or access denied"));
         budgetRepository.delete(budget);
+    }
+
+    private void validateBudgetLimit(User user, YearMonth month, java.math.BigDecimal newAmount, Long categoryId,
+            Long currentBudgetId) {
+        List<Budget> budgets = budgetRepository.findByUserIdAndMonth(user.getId(), month);
+
+        java.math.BigDecimal overallLimit = budgets.stream()
+                .filter(b -> b.getCategory() == null)
+                .findFirst()
+                .map(Budget::getAmount)
+                .orElse(java.math.BigDecimal.ZERO); // Or MAX_VALUE if no overall limit implies no limit? Assuming 0
+                                                    // means no limit set yet.
+
+        if (categoryId == null) {
+            // Updating Overall Budget
+            // Check if new overall limit < sum of category budgets
+            java.math.BigDecimal sumCategoryBudgets = budgets.stream()
+                    .filter(b -> b.getCategory() != null)
+                    .map(Budget::getAmount)
+                    .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+            if (newAmount.compareTo(sumCategoryBudgets) < 0) {
+                throw new IllegalArgumentException(
+                        "Overall budget cannot be less than total allocated category budgets (" + sumCategoryBudgets
+                                + ")");
+            }
+        } else {
+            // Updating Category Budget
+            if (overallLimit.compareTo(java.math.BigDecimal.ZERO) == 0) {
+                // No overall limit set, so any amount is fine (or maybe warn?)
+                return;
+            }
+
+            java.math.BigDecimal otherCategoryBudgets = budgets.stream()
+                    .filter(b -> b.getCategory() != null && !b.getId().equals(currentBudgetId))
+                    .map(Budget::getAmount)
+                    .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+            java.math.BigDecimal totalAfterUpdate = otherCategoryBudgets.add(newAmount);
+
+            if (totalAfterUpdate.compareTo(overallLimit) > 0) {
+                throw new IllegalArgumentException("Total category budgets (" + totalAfterUpdate
+                        + ") exceed Overall Budget limit (" + overallLimit + ")");
+            }
+        }
     }
 }
