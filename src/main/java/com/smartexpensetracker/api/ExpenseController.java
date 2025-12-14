@@ -25,10 +25,6 @@ public class ExpenseController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) Long category,
             @AuthenticationPrincipal UserDetails userDetails) {
-        if (from == null)
-            from = LocalDate.now().minusMonths(1);
-        if (to == null)
-            to = LocalDate.now();
         return ResponseEntity.ok(expenseService.getExpenses(userDetails.getUsername(), from, to, category));
     }
 
@@ -42,6 +38,9 @@ public class ExpenseController {
             @RequestBody Expense expense,
             @RequestParam(required = false) Long categoryId,
             @AuthenticationPrincipal UserDetails userDetails) {
+        if (categoryId == null && expense.getCategory() != null) {
+            categoryId = expense.getCategory().getId();
+        }
         return ResponseEntity.ok(expenseService.createExpense(expense, userDetails.getUsername(), categoryId));
     }
 
@@ -51,6 +50,9 @@ public class ExpenseController {
             @RequestBody Expense expense,
             @RequestParam(required = false) Long categoryId,
             @AuthenticationPrincipal UserDetails userDetails) {
+        if (categoryId == null && expense.getCategory() != null) {
+            categoryId = expense.getCategory().getId();
+        }
         return ResponseEntity.ok(expenseService.updateExpense(id, expense, userDetails.getUsername(), categoryId));
     }
 
