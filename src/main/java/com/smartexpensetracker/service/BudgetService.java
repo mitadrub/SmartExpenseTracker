@@ -53,4 +53,11 @@ public class BudgetService {
         // Allow updating month? Usually fixed. Let's allow amount update mainly.
         return budgetRepository.save(existing);
     }
+
+    public void deleteBudget(Long id, String username) {
+        Budget budget = budgetRepository.findById(id)
+                .filter(b -> b.getUser().getUsername().equals(username))
+                .orElseThrow(() -> new RuntimeException("Budget not found or access denied"));
+        budgetRepository.delete(budget);
+    }
 }
