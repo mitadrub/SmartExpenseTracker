@@ -31,101 +31,125 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 class ExpenseControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+        @Autowired
+        private MockMvc mockMvc;
 
-    @MockBean
-    private ExpenseService expenseService;
+        @MockBean
+        private ExpenseService expenseService;
 
-    // SecurityConfig dependencies
-    @MockBean
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
-    @MockBean
-    private AuthenticationProvider authenticationProvider;
+        // SecurityConfig dependencies
+        @MockBean
+        private JwtAuthenticationFilter jwtAuthenticationFilter;
+        @MockBean
+        private AuthenticationProvider authenticationProvider;
 
-    private ObjectMapper objectMapper;
+        private ObjectMapper objectMapper;
 
-    @BeforeEach
-    void setUp() {
-        objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-    }
+        @BeforeEach
+        void setUp() {
+                objectMapper = new ObjectMapper();
+                objectMapper.registerModule(new JavaTimeModule());
+        }
 
-    @Test
-    @WithMockUser(username = "testuser")
-    void getExpenses_ShouldReturnList() throws Exception {
-        Expense expense = new Expense();
-        expense.setId(1L);
-        expense.setDescription("Test");
+        @Test
+        @WithMockUser(username = "testuser")
+        void getExpenses_ShouldReturnList() throws Exception {
+                Expense expense = new Expense();
+                expense.setId(1L);
+                expense.setDescription("Test");
 
-        when(expenseService.getExpenses(eq("testuser"), any(), any(), any()))
-                .thenReturn(Collections.singletonList(expense));
+                when(expenseService.getExpenses(eq("testuser"), any(), any(), any()))
+                                .thenReturn(Collections.singletonList(expense));
 
-        mockMvc.perform(get("/api/v1/expenses"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].description").value("Test"));
-    }
+                mockMvc.perform(get("/api/v1/expenses"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].description").value("Test"));
+        }
 
-    @Test
-    @WithMockUser(username = "testuser")
-    void createExpense_ShouldReturnCreated() throws Exception {
-        Expense expense = new Expense();
-        expense.setAmount(BigDecimal.TEN);
-        expense.setDate(LocalDate.now());
-        expense.setDescription("New");
+        @Test
+        @WithMockUser(username = "testuser")
+        void getExpenses_WithFilters_ShouldReturnFilteredList() throws Exception {
+                Expense expense = new Expense();
+                expense.setId(1L);
+                expense.setDescription("Filtered Expense");
+                expense.setAmount(BigDecimal.valueOf(100));
+                expense.setDate(LocalDate.of(2023, 10, 15));
 
-        when(expenseService.createExpense(any(Expense.class), eq("testuser"), any()))
-                .thenReturn(expense);
+                LocalDate fromDate = LocalDate.of(2023, 10, 1);
+                LocalDate toDate = LocalDate.of(2023, 10, 31);
+                Long categoryId = 2L;
 
-        mockMvc.perform(post("/api/v1/expenses")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(expense)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.description").value("New"));
-    }
+                when(expenseService.getExpenses(eq("testuser"), eq(fromDate), eq(toDate), eq(categoryId)))
+                                .thenReturn(Collections.singletonList(expense));
 
-    @Test
-    @WithMockUser(username = "testuser")
-    void getExpense_ShouldReturnExpense() throws Exception {
-        Expense expense = new Expense();
-        expense.setId(1L);
-        expense.setDescription("Details");
+                mockMvc.perform(get("/api/v1/expenses")
+                                .param("from", fromDate.toString())
+                                .param("to", toDate.toString())
+                                .param("category", categoryId.toString()))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].description").value("Filtered Expense"));
+        }
 
-        when(expenseService.getExpense(eq(1L), eq("testuser"))).thenReturn(expense);
+        @Test
+        @WithMockUser(username = "testuser")
+        void createExpense_ShouldReturnCreated() throws Exception {
+                Expense expense = new Expense();
+                expense.setAmount(BigDecimal.TEN);
+                expense.setDate(LocalDate.now());
+                expense.setDescription("New");
 
-        mockMvc.perform(get("/api/v1/expenses/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.description").value("Details"));
-    }
+                when(expenseService.createExpense(any(Expense.class), eq("testuser"), any()))
+                                .thenReturn(expense);
 
-    @Test
-    @WithMockUser(username = "testuser")
-    void updateExpense_ShouldReturnUpdated_AndExtractCategoryId() throws Exception {
-        Expense expense = new Expense();
-        expense.setId(1L);
-        expense.setAmount(BigDecimal.TEN);
-        expense.setDescription("Updated");
-        // category object to test extraction logic
-        com.smartexpensetracker.model.Category cat = new com.smartexpensetracker.model.Category();
-        cat.setId(5L);
-        expense.setCategory(cat);
+                mockMvc.perform(post("/api/v1/expenses")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(expense)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.description").value("New"));
+        }
 
-        when(expenseService.updateExpense(eq(1L), any(Expense.class), eq("testuser"), eq(5L)))
-                .thenReturn(expense);
+        @Test
+        @WithMockUser(username = "testuser")
+        void getExpense_ShouldReturnExpense() throws Exception {
+                Expense expense = new Expense();
+                expense.setId(1L);
+                expense.setDescription("Details");
 
-        mockMvc.perform(put("/api/v1/expenses/1")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(expense)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.description").value("Updated"));
-    }
+                when(expenseService.getExpense(eq(1L), eq("testuser"))).thenReturn(expense);
 
-    @Test
-    @WithMockUser(username = "testuser")
-    void deleteExpense_ShouldReturnOk() throws Exception {
-        mockMvc.perform(delete("/api/v1/expenses/1"))
-                .andExpect(status().isOk());
+                mockMvc.perform(get("/api/v1/expenses/1"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.description").value("Details"));
+        }
 
-        org.mockito.Mockito.verify(expenseService).deleteExpense(eq(1L), eq("testuser"));
-    }
+        @Test
+        @WithMockUser(username = "testuser")
+        void updateExpense_ShouldReturnUpdated_AndExtractCategoryId() throws Exception {
+                Expense expense = new Expense();
+                expense.setId(1L);
+                expense.setAmount(BigDecimal.TEN);
+                expense.setDescription("Updated");
+                // category object to test extraction logic
+                com.smartexpensetracker.model.Category cat = new com.smartexpensetracker.model.Category();
+                cat.setId(5L);
+                expense.setCategory(cat);
+
+                when(expenseService.updateExpense(eq(1L), any(Expense.class), eq("testuser"), eq(5L)))
+                                .thenReturn(expense);
+
+                mockMvc.perform(put("/api/v1/expenses/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(expense)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.description").value("Updated"));
+        }
+
+        @Test
+        @WithMockUser(username = "testuser")
+        void deleteExpense_ShouldReturnOk() throws Exception {
+                mockMvc.perform(delete("/api/v1/expenses/1"))
+                                .andExpect(status().isOk());
+
+                org.mockito.Mockito.verify(expenseService).deleteExpense(eq(1L), eq("testuser"));
+        }
 }

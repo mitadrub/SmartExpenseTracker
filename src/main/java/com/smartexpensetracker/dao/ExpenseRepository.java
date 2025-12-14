@@ -9,16 +9,18 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface ExpenseRepository extends JpaRepository<Expense, Long> {
-    List<Expense> findByUserId(Long userId);
+        List<Expense> findByUserId(Long userId);
 
-    @Query("SELECT e FROM Expense e WHERE e.user.id = :userId AND e.date BETWEEN :startDate AND :endDate")
-    List<Expense> findByUserIdAndDateBetween(@Param("userId") Long userId,
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate);
+        @Query("SELECT e FROM Expense e WHERE e.user.id = :userId AND e.date BETWEEN :startDate AND :endDate")
+        List<Expense> findByUserIdAndDateBetween(@Param("userId") Long userId,
+                        @Param("startDate") LocalDate startDate,
+                        @Param("endDate") LocalDate endDate);
 
-    @Query("SELECT e FROM Expense e WHERE e.user.id = :userId AND e.category.id = :categoryId AND e.date BETWEEN :startDate AND :endDate")
-    List<Expense> findByUserIdAndCategoryIdAndDateBetween(@Param("userId") Long userId,
-            @Param("categoryId") Long categoryId,
-            @Param("startDate") LocalDate startDate,
-            @Param("endDate") LocalDate endDate);
+        @Query("SELECT e FROM Expense e WHERE e.user.id = :userId AND e.category.id = :categoryId AND e.date BETWEEN :startDate AND :endDate")
+        List<Expense> findByUserIdAndCategoryIdAndDateBetween(@Param("userId") Long userId,
+                        @Param("categoryId") Long categoryId,
+                        @Param("startDate") LocalDate startDate,
+                        @Param("endDate") LocalDate endDate);
+
+        List<Expense> findByUserIdAndCategoryId(Long userId, Long categoryId);
 }

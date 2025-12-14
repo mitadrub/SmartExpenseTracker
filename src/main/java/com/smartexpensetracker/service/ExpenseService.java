@@ -22,6 +22,19 @@ public class ExpenseService {
 
     public List<Expense> getExpenses(String username, LocalDate from, LocalDate to, Long categoryId) {
         User user = userRepository.findByUsername(username).orElseThrow();
+        if (from == null && to == null) {
+            if (categoryId != null) {
+                return expenseRepository.findByUserIdAndCategoryId(user.getId(), categoryId);
+            }
+            return expenseRepository.findByUserId(user.getId());
+        }
+
+        // If one is null but not likely both due to controller (but good to be safe)
+        if (from == null)
+            from = LocalDate.now().minusMonths(1);
+        if (to == null)
+            to = LocalDate.now();
+
         if (categoryId != null) {
             return expenseRepository.findByUserIdAndCategoryIdAndDateBetween(user.getId(), categoryId, from, to);
         }
