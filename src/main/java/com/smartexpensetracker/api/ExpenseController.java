@@ -24,8 +24,11 @@ public class ExpenseController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) Long category,
+            @RequestParam(required = false) java.math.BigDecimal minAmount,
+            @RequestParam(required = false) java.math.BigDecimal maxAmount,
             @AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(expenseService.getExpenses(userDetails.getUsername(), from, to, category));
+        return ResponseEntity
+                .ok(expenseService.getExpenses(userDetails.getUsername(), from, to, category, minAmount, maxAmount));
     }
 
     @GetMapping("/{id}")

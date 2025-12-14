@@ -23,4 +23,17 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
                         @Param("endDate") LocalDate endDate);
 
         List<Expense> findByUserIdAndCategoryId(Long userId, Long categoryId);
+
+        @Query("SELECT e FROM Expense e WHERE e.user.id = :userId " +
+                        "AND (:categoryId IS NULL OR e.category.id = :categoryId) " +
+                        "AND (cast(:startDate as date) IS NULL OR e.date >= :startDate) " +
+                        "AND (cast(:endDate as date) IS NULL OR e.date <= :endDate) " +
+                        "AND (:minAmount IS NULL OR e.amount >= :minAmount) " +
+                        "AND (:maxAmount IS NULL OR e.amount <= :maxAmount)")
+        List<Expense> findFilteredExpenses(@Param("userId") Long userId,
+                        @Param("categoryId") Long categoryId,
+                        @Param("startDate") LocalDate startDate,
+                        @Param("endDate") LocalDate endDate,
+                        @Param("minAmount") java.math.BigDecimal minAmount,
+                        @Param("maxAmount") java.math.BigDecimal maxAmount);
 }

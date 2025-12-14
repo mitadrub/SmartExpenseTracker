@@ -58,7 +58,7 @@ class ExpenseControllerTest {
                 expense.setId(1L);
                 expense.setDescription("Test");
 
-                when(expenseService.getExpenses(eq("testuser"), any(), any(), any()))
+                when(expenseService.getExpenses(eq("testuser"), any(), any(), any(), any(), any()))
                                 .thenReturn(Collections.singletonList(expense));
 
                 mockMvc.perform(get("/api/v1/expenses"))
@@ -79,7 +79,7 @@ class ExpenseControllerTest {
                 LocalDate toDate = LocalDate.of(2023, 10, 31);
                 Long categoryId = 2L;
 
-                when(expenseService.getExpenses(eq("testuser"), eq(fromDate), eq(toDate), eq(categoryId)))
+                when(expenseService.getExpenses(eq("testuser"), eq(fromDate), eq(toDate), eq(categoryId), any(), any()))
                                 .thenReturn(Collections.singletonList(expense));
 
                 mockMvc.perform(get("/api/v1/expenses")

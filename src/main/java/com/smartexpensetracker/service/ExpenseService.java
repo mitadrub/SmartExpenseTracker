@@ -20,25 +20,10 @@ public class ExpenseService {
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
 
-    public List<Expense> getExpenses(String username, LocalDate from, LocalDate to, Long categoryId) {
+    public List<Expense> getExpenses(String username, LocalDate from, LocalDate to, Long categoryId,
+            java.math.BigDecimal minAmount, java.math.BigDecimal maxAmount) {
         User user = userRepository.findByUsername(username).orElseThrow();
-        if (from == null && to == null) {
-            if (categoryId != null) {
-                return expenseRepository.findByUserIdAndCategoryId(user.getId(), categoryId);
-            }
-            return expenseRepository.findByUserId(user.getId());
-        }
-
-        // If one is null but not likely both due to controller (but good to be safe)
-        if (from == null)
-            from = LocalDate.now().minusMonths(1);
-        if (to == null)
-            to = LocalDate.now();
-
-        if (categoryId != null) {
-            return expenseRepository.findByUserIdAndCategoryIdAndDateBetween(user.getId(), categoryId, from, to);
-        }
-        return expenseRepository.findByUserIdAndDateBetween(user.getId(), from, to);
+        return expenseRepository.findFilteredExpenses(user.getId(), categoryId, from, to, minAmount, maxAmount);
     }
 
     public Expense getExpense(Long id, String username) {
