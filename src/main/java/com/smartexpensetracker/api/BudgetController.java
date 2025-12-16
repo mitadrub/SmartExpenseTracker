@@ -48,4 +48,12 @@ public class BudgetController {
             @AuthenticationPrincipal UserDetails userDetails) {
         return ResponseEntity.ok(budgetService.updateBudget(id, budget, userDetails.getUsername()));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteBudget(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        budgetService.deleteBudget(id, userDetails.getUsername());
+        return ResponseEntity.noContent().build();
+    }
 }
